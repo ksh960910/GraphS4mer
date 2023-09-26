@@ -4,53 +4,76 @@ Siyi Tang, Jared A. Dunnmon, Liangqiong Qu, Khaled K. Saab, Tina Baykaner, Chris
 
 ---
 ## Setup
-This codebase requries python ≥ 3.9, pytorch ≥ 1.12.0, and pyg installed. Please refer to [PyTorch installation](https://pytorch.org/) and [PyG installation](https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html). Other dependencies are included in `requirements.txt` and can be installed via `pip install -r requirements.txt`
+This codebase requries python ≥ 3.9, pytorch ≥ 1.12.0, and pyg installed. 
+
+Please refer to [PyTorch installation](https://pytorch.org/) and [PyG installation](https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html). 
+
+Other dependencies are included in `requirements.txt` and can be installed via `pip install -r requirements.txt`
 
 ---
 ## Datasets
-### TUSZ
-The TUSZ dataset is publicly available and can be accessed from https://isip.piconepress.com/projects/tuh_eeg/html/downloads.shtml after filling out the data request form. We use TUSZ v1.5.2 in this study.
-#### TUSZ data preprocessing
-First, we resample all EEG signals in TUSZ to 200 Hz. To do so, run:
-```
-python data/preprocess/resample_tuh.py --raw_edf_dir {dir-to-tusz-edf-files} --save_dir {dir-to-resampled-signals}
-```
-
 ### DOD-H
 The DOD-H dataset is publicly available and can be downloaded from this [repo](https://github.com/Dreem-Organization/dreem-learning-open).
 
-### ICBEB
-The ICBEB dataset is publicly available and can be downloaded using this [script](https://github.com/helme/ecg_ptbxl_benchmarking/blob/master/get_datasets.sh) from this [repo](https://github.com/helme/ecg_ptbxl_benchmarking).
-#### ICBEB data preprocessing
-We will follow this [repo](https://github.com/helme/ecg_ptbxl_benchmarking) to split the ICBEB dataset into train/validation/test sets, downsample the ECGs to 100 Hz, and obtain nine ECG class labels. To do so, run:
+Currently, downloaded DOD-H dataset is saved in `/HDD/dodh`
+
+### Our PSG data
+We used PSG dataset in `/nas/SNUBH-PSG_signal_extract/train_data`
+### Preprocessing our PSG data
+
+**Please note that this process takes lots of times and space, so check if your save-dir have enough space before proceeding.**
+ 
+To preprocess/save our PSG data, specify `<dir-to-PSG-data>`, `<your-save-dir>`, then run:
 ```
-python data/preprocess/preprocess_icbeb.py --raw_data_dir <raw-icbeb-data-dir> --output_dir <icbeb-data-dir> --sampling_freq 100
+python ./signal_process/psgsync.py --data_dir <dir-to-PSG-data> --output_dir <your-save-dir>
 ```
 
 ---
 ## Model Training
-`scripts` folder shows examples to train GraphS4mer on the three datasets. These scripts have been tested on a single NVIDIA A100 GPU and a single NVIDIA TITAN RTX GPU. If you have a GPU with smaller memory, you can decrease the batch size and set `accumulate_grad_batches` to a value > 1. 
-### Model training on TUSZ dataset
-To train GraphS4mer on the TUSZ dataset, specify `<dir-to-resampled-signals>`, `<preproc-save-dir>`, and `<your-save-dir>` in `scripts/run_tuh.sh`, then run the following:
-```
-bash ./scripts/run_tuh.sh
-```
-Note that the first time when you run this script, it will first preprocess the resampled signals by sliding a 60-s window without overlaps and save the 60-s EEG clips and seizure/non-seizure labels in PyG data object in `<preproc-save-dir>`.
+`scripts` folder shows examples to train GraphS4mer on the three datasets. If you have a GPU with smaller memory, you can decrease the batch size and set `accumulate_grad_batches` to a value > 1. 
 
 ### Model training on DOD-H dataset
 To train GraphS4mer on the DOD-H dataset, specify `<dir-to-dodh-data>` and `<your-save-dir>` in `scripts/run_dodh.sh`, then run:
 ```
 bash ./scripts/run_dodh.sh
 ```
+### Model training on Our dataset
+To train GraphS4mer on Our dataset, 
+1. Run this first ***(Only if you want to create all data1~3 filemarkers)*** to create file_markers for the training.
+```
+python create_filemarker.py
+```
+2. Specify filemarker directory `DODH_FILEMARKER_DIR` in `datamodule_dreem.py`
+3. Specify `logger` for the name of the tensorboard logger in `train.py` **(which is in main)**
+4. Check `constants.py` to see `OURS_CHANNELS` list has appropriate sensors for the training
 
-### Model training on ICBEB dataset
-To train GraphS4mer on the ICBEB dataset, specify `<icbeb-data-dir>` and `<your-save-dir>` in `scripts/run_icbeb.sh`, then run:
+   *(It is set to 6EEG+2EOG+1EKG+1EMG)*
+
+5. specify these follwings in `scripts/run_ours.sh`:
+
+`RAW_DATA_DIR` : directory to our processed PSG data
+
+`SAVE_DIR` : directory to model checkpoints
+
+`sampling_freq` : sampling frequency for the resampling **(all channels will be resampled to this frequency)**
+
+`num_nodes` : number of channels for the training **(It has to match with the length of `OURS_CHANNELS` in `constants.py`)**
+
+`resolution` : Time steps for each dynamic graph to be made.
+
+   *(e.g., 250Hz 30s -> 7500 steps, if resolution : 2500, it means 3 dynamic graphs are made, each graph is responsible for 10s)*
+      
+`gpus` : For multi-gpu training, this number should be higher than 1
+
+6. run this for the training:
+
 ```
-bash ./scripts/run_icbeb.sh
+bash ./scripts/run_ours.sh
 ```
+
 ---
-## Updates
-* 2023-03: Traffic forecasting related experiments have been moved to the branch `traffic`.
+## Utils
+
 
 ---
 ## Reference
