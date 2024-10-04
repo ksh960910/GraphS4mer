@@ -71,9 +71,6 @@ python create_filemarker.py
 bash ./scripts/run_ours.sh
 ```
 
----
-## Utils
-
 
 ---
 ## Reference
